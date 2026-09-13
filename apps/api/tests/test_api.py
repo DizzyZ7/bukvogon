@@ -71,7 +71,11 @@ def test_ranked_rate_contract_returns_new_ratings():
 
 
 def test_production_app_registers_realtime_race_routes():
-    paths = {route.path for route in app.routes}
+    paths = {
+        path
+        for route in app.routes
+        if (path := getattr(route, 'path', None)) is not None
+    }
     assert '/v1/races' in paths
     assert '/v1/races/{race_id}' in paths
     assert '/v1/races/{race_id}/ws/{player_id}' in paths

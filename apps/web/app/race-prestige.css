@@ -1,0 +1,235 @@
+.raceLanePreview__identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.racePrestigeBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.racePrestigeBadge--free {
+  color: #8791a0;
+  border-color: #2d3641;
+  background: #151b23;
+}
+
+.racePrestigeBadge--novice {
+  color: #a7f4e8;
+  border-color: rgba(111, 238, 218, .35);
+  background: rgba(111, 238, 218, .09);
+}
+
+.racePrestigeBadge--bronze {
+  color: #e7a36a;
+  border-color: rgba(217, 126, 61, .38);
+  background: rgba(217, 126, 61, .10);
+}
+
+.racePrestigeBadge--silver {
+  color: #e6edf7;
+  border-color: rgba(214, 225, 239, .38);
+  background: rgba(214, 225, 239, .10);
+}
+
+.racePrestigeBadge--gold {
+  color: #ffe27b;
+  border-color: rgba(255, 213, 78, .40);
+  background: rgba(255, 213, 78, .10);
+}
+
+.racePrestigeBadge--platinum {
+  color: #91ffe6;
+  border-color: rgba(91, 246, 207, .40);
+  background: rgba(91, 246, 207, .10);
+}
+
+.racePrestigeBadge--diamond {
+  color: #9bdcff;
+  border-color: rgba(81, 182, 255, .44);
+  background: rgba(81, 182, 255, .11);
+}
+
+.racePrestigeBadge--master {
+  color: #d5a4ff;
+  border-color: rgba(184, 94, 255, .43);
+  background: rgba(184, 94, 255, .11);
+}
+
+.racePrestigeBadge--grandmaster {
+  color: #ff9fd0;
+  border-color: rgba(255, 75, 170, .44);
+  background: rgba(255, 75, 170, .11);
+}
+
+.racePrestigeBadge--top1000 {
+  color: #1a1300;
+  border-color: rgba(255, 232, 138, .78);
+  background: linear-gradient(180deg, #fff4b5 0%, #ffd44f 56%, #e6a800 100%);
+  box-shadow: 0 0 14px rgba(255, 201, 43, .28);
+}
+
+.raceRunner {
+  isolation: isolate;
+}
+
+.raceRunner > .raceVisual {
+  position: relative;
+  z-index: 2;
+}
+
+.racePrestigeAura {
+  position: absolute;
+  z-index: 0;
+  inset: -8px -4px;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: .78;
+  filter: blur(12px);
+  animation: racePrestigePulse 2.5s ease-in-out infinite;
+}
+
+.racePrestigeAura--none {
+  display: none;
+}
+
+.racePrestigeAura--novice {
+  background: radial-gradient(circle, rgba(106, 247, 220, .64) 0%, rgba(106, 247, 220, .18) 48%, transparent 73%);
+  box-shadow: 0 0 24px rgba(106, 247, 220, .25);
+}
+
+.racePrestigeAura--bronze {
+  background: radial-gradient(circle, rgba(226, 126, 55, .70) 0%, rgba(226, 126, 55, .18) 48%, transparent 73%);
+  box-shadow: 0 0 25px rgba(226, 126, 55, .28);
+}
+
+.racePrestigeAura--silver {
+  background: radial-gradient(circle, rgba(224, 234, 247, .76) 0%, rgba(183, 204, 231, .20) 48%, transparent 73%);
+  box-shadow: 0 0 27px rgba(202, 219, 241, .30);
+}
+
+.racePrestigeAura--gold {
+  background: radial-gradient(circle, rgba(255, 219, 87, .78) 0%, rgba(255, 202, 51, .21) 48%, transparent 73%);
+  box-shadow: 0 0 29px rgba(255, 204, 58, .32);
+}
+
+.racePrestigeAura--platinum {
+  background: radial-gradient(circle, rgba(77, 255, 209, .72) 0%, rgba(70, 213, 211, .20) 48%, transparent 73%);
+  box-shadow: 0 0 30px rgba(74, 237, 218, .31);
+}
+
+.racePrestigeAura--diamond {
+  background: radial-gradient(circle, rgba(77, 184, 255, .78) 0%, rgba(72, 142, 255, .22) 48%, transparent 73%);
+  box-shadow: 0 0 31px rgba(77, 184, 255, .34);
+}
+
+.racePrestigeAura--master {
+  background: radial-gradient(circle, rgba(190, 92, 255, .78) 0%, rgba(138, 69, 255, .22) 48%, transparent 73%);
+  box-shadow: 0 0 32px rgba(183, 86, 255, .35);
+}
+
+.racePrestigeAura--grandmaster {
+  background: radial-gradient(circle, rgba(255, 77, 174, .82) 0%, rgba(211, 54, 255, .22) 48%, transparent 73%);
+  box-shadow: 0 0 34px rgba(255, 68, 178, .38);
+}
+
+.racePrestigeAura--top1000 {
+  inset: -12px -8px;
+  opacity: .98;
+  filter: blur(10px);
+  background:
+    radial-gradient(circle at 50% 54%, rgba(255, 246, 181, .94) 0%, rgba(255, 213, 72, .62) 31%, rgba(255, 174, 0, .28) 52%, transparent 76%);
+  box-shadow:
+    0 0 18px rgba(255, 237, 148, .72),
+    0 0 38px rgba(255, 204, 55, .47),
+    0 0 62px rgba(255, 173, 0, .28);
+  animation: racePrestigeGoldPulse 1.85s ease-in-out infinite;
+}
+
+.raceRunner--top1000 > .raceVisual {
+  filter:
+    drop-shadow(0 0 5px rgba(255, 244, 181, .85))
+    drop-shadow(0 0 13px rgba(255, 202, 51, .52));
+}
+
+.racePrestigeCrown {
+  position: absolute;
+  z-index: 4;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-3deg);
+  color: #ffe36d;
+  font-size: 22px;
+  line-height: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  text-shadow:
+    0 1px 0 #8a5a00,
+    0 0 7px rgba(255, 246, 183, .92),
+    0 0 16px rgba(255, 194, 27, .72);
+  animation: racePrestigeCrownFloat 1.85s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes racePrestigePulse {
+  0%, 100% {
+    transform: scale(.93);
+    opacity: .64;
+  }
+  50% {
+    transform: scale(1.07);
+    opacity: .92;
+  }
+}
+
+@keyframes racePrestigeGoldPulse {
+  0%, 100% {
+    transform: scale(.92);
+    opacity: .78;
+  }
+  50% {
+    transform: scale(1.10);
+    opacity: 1;
+  }
+}
+
+@keyframes racePrestigeCrownFloat {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-2px) rotate(3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .racePrestigeAura,
+  .racePrestigeCrown {
+    animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .racePrestigeBadge {
+    max-width: 74px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .racePrestigeCrown {
+    top: -14px;
+    font-size: 19px;
+  }
+}

@@ -97,6 +97,8 @@ class RaceService:
         cpm: int,
         accuracy: float,
     ) -> RacePlayerState:
+        result_to_persist: PersistedRaceResult | None = None
+
         async with self._store.lock(race_id):
             race = await self.get_race(race_id)
             player = race.apply_progress(
@@ -108,14 +110,15 @@ class RaceService:
             await self._store.save(race)
 
             if player.place is not None:
-                await self._persist_result(
-                    PersistedRaceResult(
-                        race_id=race.race_id,
-                        player_id=player.player_id,
-                        place=player.place,
-                        cpm=player.cpm,
-                        accuracy=player.accuracy,
-                    )
+                result_to_persist = PersistedRaceResult(
+                    race_id=race.race_id,
+                    player_id=player.player_id,
+                    place=player.place,
+                    cpm=player.cpm,
+                    accuracy=player.accuracy,
                 )
 
-            return player
+        if result_to_persist is not None:
+            await self._persist_result(result_to_persist)
+
+        return player

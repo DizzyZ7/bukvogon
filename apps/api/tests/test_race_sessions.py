@@ -111,3 +111,34 @@ def test_service_uses_store_level_lock_for_mutations():
         assert store.lock_entered is True
 
     asyncio.run(scenario())
+
+
+def test_finish_persistence_runs_after_race_lock_is_released():
+    class LockAwareStore(InMemoryRaceStore):
+        def __init__(self):
+            super().__init__()
+            self.lock_active = False
+
+        @asynccontextmanager
+        async def lock(self, race_id: str):
+            async with self.lock_for(race_id):
+                self.lock_active = True
+                try:
+                    yield
+                finally:
+                    self.lock_active = False
+
+    async def scenario():
+        store = LockAwareStore()
+        observed_lock_states = []
+
+        async def persist_result(_):
+            observed_lock_states.append(store.lock_active)
+
+        service = RaceService(store=store, persist_result=persist_result)
+        await service.create_race('race-db', text_length=5, player_ids=['a'])
+        await service.apply_progress('race-db', 'a', offset=5, cpm=300, accuracy=1.0)
+
+        assert observed_lock_states == [False]
+
+    asyncio.run(scenario())

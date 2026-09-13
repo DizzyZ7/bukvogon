@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 
 import {
+  getPrestigePresentation,
+  type RacePrestige,
+} from '../../lib/race-prestige';
+import {
   DEFAULT_RACE_VISUAL_THEME,
   RACE_VISUAL_THEMES,
   getRaceVariant,
@@ -13,11 +17,57 @@ import {
 } from '../../lib/race-visuals';
 import { RaceVisual } from './RaceVisual';
 
-const PREVIEW_RACERS = [
-  { id: 'you', name: 'Ты', progress: 76, cpm: 412 },
-  { id: 'fox', name: 'Лиса', progress: 63, cpm: 367 },
-  { id: 'keyboard', name: 'Клавиша', progress: 51, cpm: 332 },
-  { id: 'meteor', name: 'Метеор', progress: 39, cpm: 288 },
+type PreviewRacer = Readonly<{
+  id: string;
+  name: string;
+  progress: number;
+  cpm: number;
+  prestige: RacePrestige;
+}>;
+
+const PREVIEW_RACERS: readonly PreviewRacer[] = [
+  {
+    id: 'you',
+    name: 'Ты',
+    progress: 76,
+    cpm: 412,
+    prestige: {
+      subscription: 'pro',
+      rank: 'grandmaster',
+      leaderboardPosition: 128,
+    },
+  },
+  {
+    id: 'fox',
+    name: 'Лиса',
+    progress: 63,
+    cpm: 367,
+    prestige: {
+      subscription: 'pro',
+      rank: 'diamond',
+      leaderboardPosition: 1842,
+    },
+  },
+  {
+    id: 'keyboard',
+    name: 'Клавиша',
+    progress: 51,
+    cpm: 332,
+    prestige: {
+      subscription: 'pro',
+      rank: 'silver',
+      leaderboardPosition: 5917,
+    },
+  },
+  {
+    id: 'meteor',
+    name: 'Метеор',
+    progress: 39,
+    cpm: 288,
+    prestige: {
+      subscription: 'free',
+    },
+  },
 ] as const;
 
 export function RaceScene() {
@@ -83,10 +133,20 @@ export function RaceScene() {
         <div className="raceLanes">
           {PREVIEW_RACERS.map((racer, index) => {
             const progress = Math.max(4, Math.min(94, racer.progress));
+            const prestige = getPrestigePresentation(racer.prestige);
+            const isPro = racer.prestige.subscription === 'pro';
+
             return (
               <div className="raceLanePreview" key={racer.id}>
                 <div className="raceLanePreview__meta">
-                  <strong>{racer.name}</strong>
+                  <div className="raceLanePreview__identity">
+                    <strong>{racer.name}</strong>
+                    {isPro && (
+                      <span className={prestige.badgeClassName}>
+                        {prestige.badgeLabel}
+                      </span>
+                    )}
+                  </div>
                   <span>{racer.cpm} зн/мин</span>
                 </div>
                 <div className="raceLanePreview__rail">
@@ -95,14 +155,20 @@ export function RaceScene() {
                     <i /><i /><i /><i /><i /><i />
                   </div>
                   <div
-                    className="raceRunner"
+                    className={`raceRunner${prestige.showCrown ? ' raceRunner--top1000' : ''}`}
                     style={{ left: `${progress}%` }}
                     title={`${racer.name}: ${racer.progress}%`}
                   >
+                    {prestige.showAura && (
+                      <span className={prestige.auraClassName} aria-hidden="true" />
+                    )}
+                    {prestige.showCrown && (
+                      <span className="racePrestigeCrown" aria-hidden="true">♛</span>
+                    )}
                     <RaceVisual
                       theme={selectedTheme}
                       variant={getRaceVariant(selectedTheme, index)}
-                      label={`${racer.name}, ${theme.label}, ${racer.progress}% дистанции`}
+                      label={`${racer.name}, ${theme.label}, ${racer.progress}% дистанции, ${prestige.badgeLabel}`}
                     />
                   </div>
                 </div>

@@ -1,0 +1,553 @@
+.playPage {
+  min-height: 100vh;
+}
+
+.playHero {
+  padding: 72px 0 46px;
+}
+
+.playHero h1 {
+  font-size: clamp(52px, 7.6vw, 96px);
+  max-width: 980px;
+}
+
+.raceExperience {
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: linear-gradient(155deg, rgba(247, 255, 87, .045), rgba(15, 19, 26, .96) 34%);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .24);
+}
+
+.raceExperience__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.raceExperience__top h2 {
+  margin-bottom: 12px;
+  font-size: clamp(30px, 4vw, 52px);
+  letter-spacing: -.04em;
+}
+
+.raceExperience__copy {
+  max-width: 720px;
+  margin: 0;
+}
+
+.raceExperience__badge {
+  flex: 0 0 auto;
+  padding: 10px 13px;
+  border: 1px solid #3a4420;
+  border-radius: 999px;
+  background: rgba(247, 255, 87, .08);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.themePicker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0;
+}
+
+.themeCard {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #10151d;
+  color: var(--text);
+  text-align: left;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.themeCard:hover {
+  transform: translateY(-2px);
+  border-color: #454f5d;
+}
+
+.themeCard:focus-visible {
+  outline: 3px solid rgba(247, 255, 87, .35);
+  outline-offset: 2px;
+}
+
+.themeCard--selected {
+  border-color: #708022;
+  background: linear-gradient(145deg, rgba(247, 255, 87, .12), #111720 62%);
+}
+
+.themeCard__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #080b10;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+}
+
+.themeCard__body {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.themeCard__body strong {
+  font-size: 14px;
+}
+
+.themeCard__body small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.themeCard__state {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.raceBoard {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #090d13;
+  transition: background .25s ease;
+}
+
+.raceBoard--cars {
+  background: linear-gradient(180deg, #0c1118, #090c11);
+}
+
+.raceBoard--cats {
+  background: radial-gradient(circle at 15% 15%, rgba(133, 186, 92, .08), transparent 25rem), #0b1110;
+}
+
+.raceBoard--caterpillars {
+  background: radial-gradient(circle at 78% 20%, rgba(247, 255, 87, .08), transparent 24rem), #0b100d;
+}
+
+.raceBoard--planes {
+  background: radial-gradient(circle at 70% 10%, rgba(93, 169, 255, .12), transparent 25rem), linear-gradient(180deg, #0a1320, #091019);
+}
+
+.raceBoard__header {
+  min-height: 74px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.raceBoard__header > div {
+  display: grid;
+  gap: 6px;
+}
+
+.raceBoard__header strong {
+  font-size: 19px;
+}
+
+.raceBoard__header > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.raceLanes {
+  padding: 12px 0;
+}
+
+.raceLanePreview {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  align-items: center;
+  min-height: 94px;
+  border-bottom: 1px solid rgba(48, 56, 70, .65);
+}
+
+.raceLanePreview:last-child {
+  border-bottom: 0;
+}
+
+.raceLanePreview__meta {
+  padding: 0 12px 0 22px;
+  display: grid;
+  gap: 5px;
+}
+
+.raceLanePreview__meta strong {
+  font-size: 13px;
+}
+
+.raceLanePreview__meta span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.raceLanePreview__rail {
+  position: relative;
+  height: 74px;
+  margin-right: 18px;
+  border-left: 1px dashed #3e4755;
+  border-right: 1px dashed #626d7c;
+  background: repeating-linear-gradient(90deg, transparent 0, transparent 69px, rgba(255, 255, 255, .025) 70px);
+}
+
+.raceLanePreview__start {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  color: #566171;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.raceLanePreview__finish {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: -1px;
+  width: 10px;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  opacity: .45;
+}
+
+.raceLanePreview__finish i:nth-child(odd) { background: #f5f7fb; }
+.raceLanePreview__finish i:nth-child(even) { background: #242b35; }
+
+.raceRunner {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 94px;
+  height: 64px;
+  transform: translate(-50%, -50%);
+  transition: left .45s cubic-bezier(.22, .8, .32, 1.08);
+}
+
+.raceVisual {
+  --rv-primary: #f7ff57;
+  --rv-secondary: #f4f6fa;
+  --rv-dark: #0a0d12;
+  position: relative;
+  width: 94px;
+  height: 64px;
+  animation: raceVisualIdle 1.6s ease-in-out infinite;
+}
+
+.raceVisual--v0 { --rv-primary: #f7ff57; --rv-secondary: #f5f0cf; --rv-dark: #171a12; }
+.raceVisual--v1 { --rv-primary: #68a9ff; --rv-secondary: #dcecff; --rv-dark: #101727; }
+.raceVisual--v2 { --rv-primary: #ff7c6e; --rv-secondary: #ffe0d8; --rv-dark: #251113; }
+.raceVisual--v3 { --rv-primary: #76e29a; --rv-secondary: #dbffe5; --rv-dark: #0e2116; }
+
+@keyframes raceVisualIdle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* Cars */
+.visualCar {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 12px;
+  height: 30px;
+  border-radius: 9px 19px 7px 7px;
+  background: var(--rv-primary);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .34), inset 0 -5px 0 rgba(0, 0, 0, .12);
+}
+
+.visualCar__roof {
+  position: absolute;
+  left: 30px;
+  top: -16px;
+  width: 38px;
+  height: 20px;
+  border-radius: 17px 16px 3px 3px;
+  background: var(--rv-primary);
+  transform: skewX(-13deg);
+}
+
+.visualCar__window {
+  position: absolute;
+  left: 39px;
+  top: -11px;
+  width: 24px;
+  height: 12px;
+  border-radius: 10px 10px 2px 2px;
+  background: var(--rv-dark);
+  opacity: .82;
+}
+
+.visualCar__wheel {
+  position: absolute;
+  bottom: -8px;
+  width: 17px;
+  height: 17px;
+  border: 3px solid #727b88;
+  border-radius: 50%;
+  background: #050608;
+}
+
+.visualCar__wheel--rear { left: 13px; }
+.visualCar__wheel--front { right: 13px; }
+
+/* Cats */
+.visualCat {
+  position: absolute;
+  inset: 0;
+}
+
+.visualCat__body {
+  position: absolute;
+  left: 19px;
+  bottom: 14px;
+  width: 53px;
+  height: 29px;
+  border-radius: 55% 50% 45% 48%;
+  background: var(--rv-primary);
+  box-shadow: inset -8px -4px 0 rgba(0, 0, 0, .10);
+}
+
+.visualCat__head {
+  position: absolute;
+  right: 6px;
+  bottom: 20px;
+  width: 31px;
+  height: 29px;
+  border-radius: 48% 52% 50% 50%;
+  background: var(--rv-secondary);
+}
+
+.visualCat__ear {
+  position: absolute;
+  top: -8px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 13px solid var(--rv-secondary);
+}
+
+.visualCat__ear--left { left: 1px; transform: rotate(-16deg); }
+.visualCat__ear--right { right: 1px; transform: rotate(16deg); }
+
+.visualCat__eye {
+  position: absolute;
+  top: 11px;
+  width: 4px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--rv-dark);
+}
+
+.visualCat__eye--left { left: 8px; }
+.visualCat__eye--right { right: 8px; }
+
+.visualCat__tail {
+  position: absolute;
+  left: 2px;
+  bottom: 27px;
+  width: 30px;
+  height: 11px;
+  border: 7px solid var(--rv-primary);
+  border-right: 0;
+  border-bottom-color: transparent;
+  border-radius: 22px 0 0 0;
+  transform: rotate(17deg);
+}
+
+.visualCat__paw {
+  position: absolute;
+  bottom: 9px;
+  width: 20px;
+  height: 6px;
+  border-radius: 7px;
+  background: var(--rv-primary);
+}
+
+.visualCat__paw--rear { left: 23px; transform: rotate(9deg); }
+.visualCat__paw--front { right: 14px; transform: rotate(-10deg); }
+
+/* Caterpillars */
+.visualCaterpillar {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 12px;
+  height: 38px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.visualCaterpillar__segment,
+.visualCaterpillar__head {
+  width: 24px;
+  height: 24px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--rv-primary);
+  box-shadow: inset -4px -4px 0 rgba(0, 0, 0, .11);
+}
+
+.visualCaterpillar__segment:nth-child(even) {
+  width: 27px;
+  height: 27px;
+  background: var(--rv-secondary);
+}
+
+.visualCaterpillar__head {
+  position: relative;
+  width: 29px;
+  height: 31px;
+  margin-left: -4px;
+  background: var(--rv-primary);
+}
+
+.visualCaterpillar__eye {
+  position: absolute;
+  right: 6px;
+  top: 10px;
+  width: 5px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rv-dark);
+}
+
+.visualCaterpillar__antenna {
+  position: absolute;
+  top: -12px;
+  width: 2px;
+  height: 15px;
+  border-radius: 3px;
+  background: var(--rv-secondary);
+  transform-origin: bottom;
+}
+
+.visualCaterpillar__antenna::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rv-secondary);
+}
+
+.visualCaterpillar__antenna--left { left: 8px; transform: rotate(-23deg); }
+.visualCaterpillar__antenna--right { right: 6px; transform: rotate(21deg); }
+
+/* Planes */
+.visualPlane {
+  position: absolute;
+  inset: 0;
+}
+
+.visualPlane__body {
+  position: absolute;
+  left: 5px;
+  top: 25px;
+  width: 83px;
+  height: 17px;
+  border-radius: 55% 80% 80% 55%;
+  background: var(--rv-primary);
+  clip-path: polygon(0 28%, 78% 0, 100% 50%, 78% 100%, 0 72%);
+  box-shadow: 0 9px 22px rgba(0, 0, 0, .25);
+}
+
+.visualPlane__cockpit {
+  position: absolute;
+  z-index: 2;
+  right: 17px;
+  top: 27px;
+  width: 17px;
+  height: 7px;
+  border-radius: 80% 90% 20% 20%;
+  background: var(--rv-dark);
+  opacity: .78;
+}
+
+.visualPlane__wing {
+  position: absolute;
+  z-index: 1;
+  left: 34px;
+  width: 34px;
+  height: 23px;
+  background: var(--rv-secondary);
+  clip-path: polygon(15% 0, 100% 72%, 96% 100%, 0 53%);
+}
+
+.visualPlane__wing--top { top: 7px; transform: rotate(5deg); }
+.visualPlane__wing--bottom { bottom: 4px; transform: scaleY(-1) rotate(5deg); opacity: .85; }
+
+.visualPlane__tail {
+  position: absolute;
+  z-index: 2;
+  left: 9px;
+  top: 14px;
+  width: 18px;
+  height: 18px;
+  background: var(--rv-secondary);
+  clip-path: polygon(0 100%, 36% 0, 100% 100%);
+}
+
+.playNextStep {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 36px;
+}
+
+.playNextStep h2 {
+  margin-bottom: 12px;
+  font-size: clamp(34px, 5vw, 58px);
+  letter-spacing: -.04em;
+}
+
+.playNextStep p {
+  max-width: 720px;
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raceVisual { animation: none; }
+  .raceRunner, .themeCard { transition: none; }
+}
+
+@media (max-width: 980px) {
+  .themePicker { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 720px) {
+  .playHero { padding-top: 50px; }
+  .raceExperience { padding: 20px; border-radius: 18px; }
+  .raceExperience__top, .playNextStep { flex-direction: column; align-items: flex-start; }
+  .raceExperience__badge { align-self: flex-start; }
+  .themePicker { grid-template-columns: 1fr; }
+  .raceLanePreview { grid-template-columns: 84px minmax(0, 1fr); min-height: 88px; }
+  .raceLanePreview__meta { padding-left: 11px; padding-right: 6px; }
+  .raceLanePreview__rail { margin-right: 8px; }
+  .raceBoard__header { align-items: flex-start; flex-direction: column; }
+  .raceBoard__header > span { display: none; }
+  .raceRunner { width: 76px; transform: translate(-50%, -50%) scale(.82); transform-origin: center; }
+}

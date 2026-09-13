@@ -45,7 +45,7 @@ export const RACE_VISUAL_THEMES: readonly RaceVisualTheme[] = [
 ] as const;
 
 const THEMES_BY_ID = new Map<RaceVisualThemeId, RaceVisualTheme>(
-  RACE_VISUAL_THEMES.map((theme) => [theme.id, theme]),
+  RACE_VISUAL_THEMES.map((theme) => [theme.id, theme] as const),
 );
 
 export function normalizeRaceVisualTheme(value: string | null | undefined): RaceVisualThemeId {

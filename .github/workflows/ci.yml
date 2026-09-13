@@ -48,3 +48,18 @@ jobs:
         run: npm test
       - name: Build web app
         run: npm run build
+
+  operations:
+    name: Operations and backup validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate backup shell syntax
+        run: |
+          bash -n ops/backup/backup.sh
+          bash -n ops/backup/restore.sh
+      - name: Validate Docker Compose
+        run: docker compose config >/dev/null
+      - name: Build backup container
+        run: docker build -t bukvogon-backup:ci ops/backup

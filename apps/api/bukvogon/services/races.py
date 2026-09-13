@@ -21,6 +21,7 @@ class RaceStore(Protocol):
     async def create(self, race: RaceSession) -> None: ...
     async def get(self, race_id: str) -> RaceSession | None: ...
     async def save(self, race: RaceSession) -> None: ...
+    def lock(self, race_id: str): ...
 
 
 class InMemoryRaceStore:
@@ -31,8 +32,11 @@ class InMemoryRaceStore:
     def lock_for(self, race_id: str) -> asyncio.Lock:
         return self._locks.setdefault(race_id, asyncio.Lock())
 
+    def lock(self, race_id: str) -> asyncio.Lock:
+        return self.lock_for(race_id)
+
     async def create(self, race: RaceSession) -> None:
-        async with self.lock_for(race.race_id):
+        async with self.lock(race.race_id):
             if race.race_id in self._races:
                 raise ValueError('race already exists')
             self._races[race.race_id] = RaceSession.from_dict(race.to_dict())
@@ -42,10 +46,9 @@ class InMemoryRaceStore:
         return None if race is None else RaceSession.from_dict(race.to_dict())
 
     async def save(self, race: RaceSession) -> None:
-        async with self.lock_for(race.race_id):
-            if race.race_id not in self._races:
-                raise ValueError('race does not exist')
-            self._races[race.race_id] = RaceSession.from_dict(race.to_dict())
+        if race.race_id not in self._races:
+            raise ValueError('race does not exist')
+        self._races[race.race_id] = RaceSession.from_dict(race.to_dict())
 
 
 PersistResult = Callable[[PersistedRaceResult], Awaitable[None]]
@@ -64,10 +67,6 @@ class RaceService:
     ) -> None:
         self._store = store
         self._persist_result = persist_result
-        self._locks: dict[str, asyncio.Lock] = {}
-
-    def _lock_for(self, race_id: str) -> asyncio.Lock:
-        return self._locks.setdefault(race_id, asyncio.Lock())
 
     async def create_race(
         self,
@@ -98,7 +97,7 @@ class RaceService:
         cpm: int,
         accuracy: float,
     ) -> RacePlayerState:
-        async with self._lock_for(race_id):
+        async with self._store.lock(race_id):
             race = await self.get_race(race_id)
             player = race.apply_progress(
                 player_id,

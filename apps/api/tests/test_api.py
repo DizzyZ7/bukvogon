@@ -68,3 +68,10 @@ def test_ranked_rate_contract_returns_new_ratings():
     ratings = response.json()['ratings']
     assert ratings['a'] > 1000
     assert ratings['b'] < 1000
+
+
+def test_production_app_registers_realtime_race_routes():
+    paths = {route.path for route in app.routes}
+    assert '/v1/races' in paths
+    assert '/v1/races/{race_id}' in paths
+    assert '/v1/races/{race_id}/ws/{player_id}' in paths

@@ -1,13 +1,63 @@
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: bukvogon
-      POSTGRES_USER: bukvogon
-      POSTGRES_PASSWORD: local-only
+      POSTGRES_DB: ${POSTGRES_DB:-bukvogon}
+      POSTGRES_USER: ${POSTGRES_USER:-bukvogon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only}
     ports:
       - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   redis:
     image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --appendfsync
+      - everysec
     ports:
       - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backup:
+    build:
+      context: ./ops/backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TZ: UTC
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-bukvogon}
+      POSTGRES_USER: ${POSTGRES_USER:-bukvogon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-35}
+    volumes:
+      - backups:/backups
+
+volumes:
+  pgdata:
+  redisdata:
+  backups:

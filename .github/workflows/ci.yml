@@ -61,5 +61,7 @@ jobs:
           bash -n ops/backup/restore.sh
       - name: Validate Docker Compose
         run: docker compose config >/dev/null
+      - name: Build API container
+        run: docker build -t bukvogon-api:ci apps/api
       - name: Build backup container
         run: docker build -t bukvogon-backup:ci ops/backup

@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 
 import pytest
 
@@ -86,5 +87,27 @@ def test_service_persists_finish_without_database_writes_for_intermediate_progre
         assert len(persisted) == 1
         assert persisted[0].player_id == 'a'
         assert persisted[0].place == 1
+
+    asyncio.run(scenario())
+
+
+def test_service_uses_store_level_lock_for_mutations():
+    class LockAwareStore(InMemoryRaceStore):
+        def __init__(self):
+            super().__init__()
+            self.lock_entered = False
+
+        @asynccontextmanager
+        async def lock(self, race_id: str):
+            self.lock_entered = True
+            async with self.lock_for(race_id):
+                yield
+
+    async def scenario():
+        store = LockAwareStore()
+        service = RaceService(store=store)
+        await service.create_race('race-lock', text_length=10, player_ids=['a'])
+        await service.apply_progress('race-lock', 'a', offset=1, cpm=100, accuracy=1.0)
+        assert store.lock_entered is True
 
     asyncio.run(scenario())

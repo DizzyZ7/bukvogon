@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import './globals.css';
 import './race-visuals.css';
+import './race-prestige.css';
 
 export const metadata: Metadata = {
   title: 'БуквоГон — печатай быстрее, приходи первым',

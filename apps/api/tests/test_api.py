@@ -71,11 +71,8 @@ def test_ranked_rate_contract_returns_new_ratings():
 
 
 def test_production_app_registers_realtime_race_routes():
-    paths = {
-        path
-        for route in app.routes
-        if (path := getattr(route, 'path', None)) is not None
-    }
-    assert '/v1/races' in paths
-    assert '/v1/races/{race_id}' in paths
-    assert '/v1/races/{race_id}/ws/{player_id}' in paths
+    assert str(app.url_path_for('create_race')) == '/v1/races'
+    assert str(app.url_path_for('get_race', race_id='race-1')) == '/v1/races/race-1'
+    assert str(
+        app.url_path_for('race_websocket', race_id='race-1', player_id='player-1')
+    ) == '/v1/races/race-1/ws/player-1'

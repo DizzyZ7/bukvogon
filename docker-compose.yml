@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: bukvogon
+      POSTGRES_USER: bukvogon
+      POSTGRES_PASSWORD: local-only
+    ports:
+      - '5432:5432'
+  redis:
+    image: redis:8-alpine
+    ports:
+      - '6379:6379'

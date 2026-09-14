@@ -7,7 +7,8 @@ from typing import Any
 
 import asyncpg
 
-from bukvogon.domain.anti_cheat import AntiCheatDecision
+from bukvogon.domain.anti_cheat import AntiCheatDecision, VerificationStatus
+from bukvogon.domain.ranked import RankedResult
 from bukvogon.services.anti_cheat import MAX_AUDIT_TRACE_BYTES, VERIFIER_VERSION
 from bukvogon.services.races import PersistedRaceResult
 
@@ -64,6 +65,13 @@ UPDATE race_results SET
     verifier_version = $8,
     verified_at = CASE WHEN $3 = 'verified' THEN COALESCE(verified_at, NOW()) ELSE verified_at END
 WHERE race_id = $1 AND player_id = $2
+'''
+
+_FETCH_RANKED_RESULTS = '''
+SELECT player_id, place, verification_status
+FROM race_results
+WHERE race_id = $1
+ORDER BY place ASC, player_id ASC
 '''
 
 
@@ -151,6 +159,24 @@ class PostgresRaceResultRepository:
                 audit_trace,
                 VERIFIER_VERSION,
             )
+
+    async def fetch_ranked_results(self, race_id: str) -> list[RankedResult]:
+        if not race_id:
+            raise ValueError('race_id is required')
+
+        pool = await self._get_pool()
+        await self._ensure_schema(pool)
+        async with pool.acquire() as connection:
+            rows = await connection.fetch(_FETCH_RANKED_RESULTS, race_id)
+
+        return [
+            RankedResult(
+                user_id=str(row['player_id']),
+                place=int(row['place']),
+                verification_status=VerificationStatus(str(row['verification_status'])),
+            )
+            for row in rows
+        ]
 
     async def close(self) -> None:
         if self._pool is None:

@@ -44,12 +44,32 @@ class TelemetryEvidence:
     accepted_characters: int
     errors: int = 0
     corrections: int = 0
+    observed_characters: int | None = None
+    elapsed_ms: int | None = None
+    hard_reasons: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.accepted_characters < 0:
             raise ValueError('accepted_characters cannot be negative')
         if self.errors < 0 or self.corrections < 0:
             raise ValueError('error counters cannot be negative')
+
+        observed = self.observed_characters
+        if observed is None:
+            observed = _progress_evidence(self.events)
+            object.__setattr__(self, 'observed_characters', observed)
+        if observed < 0:
+            raise ValueError('observed_characters cannot be negative')
+
+        elapsed = self.elapsed_ms
+        if elapsed is None:
+            elapsed = sum(event.dt_ms for event in self.events)
+            object.__setattr__(self, 'elapsed_ms', elapsed)
+        if elapsed < 0:
+            raise ValueError('elapsed_ms cannot be negative')
+
+        if any(not reason for reason in self.hard_reasons):
+            raise ValueError('hard reasons must be non-empty strings')
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +92,8 @@ def _progress_evidence(events: tuple[TelemetryEvent, ...]) -> int:
 def _coverage(evidence: TelemetryEvidence) -> float:
     if evidence.accepted_characters == 0:
         return 1.0
-    return min(1.0, _progress_evidence(evidence.events) / evidence.accepted_characters)
+    observed = evidence.observed_characters or 0
+    return min(1.0, observed / evidence.accepted_characters)
 
 
 def _periodicity_risk(events: tuple[TelemetryEvent, ...]) -> tuple[int, list[str]]:
@@ -97,8 +118,8 @@ def _periodicity_risk(events: tuple[TelemetryEvent, ...]) -> tuple[int, list[str
 
 
 def evaluate_evidence(evidence: TelemetryEvidence) -> AntiCheatDecision:
-    reasons: list[str] = []
-    hard_invalid = False
+    reasons: list[str] = list(evidence.hard_reasons)
+    hard_invalid = bool(evidence.hard_reasons)
     risk = 0
 
     for event in evidence.events:

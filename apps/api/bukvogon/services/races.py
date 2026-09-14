@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol
 
+from bukvogon.domain.anti_cheat import VerificationStatus
 from bukvogon.domain.race_session import RacePlayerState, RaceSession
 
 
@@ -15,6 +16,7 @@ class PersistedRaceResult:
     place: int
     cpm: int
     accuracy: float
+    verification_status: VerificationStatus = VerificationStatus.PROVISIONAL
 
 
 class RaceStore(Protocol):

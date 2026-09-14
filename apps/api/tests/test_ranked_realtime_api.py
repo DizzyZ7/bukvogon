@@ -140,6 +140,14 @@ class FakeWsTicketStore:
         return user_id
 
 
+class FakeRankedRatingRepository:
+    def __init__(self):
+        self.requested_race_ids = []
+
+    async def apply_ranked_rating(self, race_id):
+        self.requested_race_ids.append(race_id)
+
+
 def _auth(token):
     return {'Authorization': f'Bearer {token}'}
 
@@ -155,8 +163,47 @@ def _app():
     app.state.auth_service = FakeAuthService()
     app.state.auth_repository = FakeAuthRepository()
     app.state.ws_ticket_store = tickets
+    app.state.race_results = FakeRankedRatingRepository()
     app.include_router(race_router, prefix='/v1')
     return app, anti_cheat, tickets
+
+
+def _finish_ranked_socket(client, race_id, challenge):
+    target = challenge['target_text']
+    ticket = challenge['ws_ticket']
+    with client.websocket_connect(
+        f"/v1/ranked/races/{race_id}/ws/{challenge['challenge_id']}?ticket={ticket}"
+    ) as socket:
+        initial = socket.receive_json()
+        assert initial['type'] == 'snapshot'
+
+        socket.send_text(json.dumps({
+            'type': 'ranked_telemetry',
+            'challenge_id': challenge['challenge_id'],
+            'nonce': challenge['nonce'],
+            'batch_seq': 1,
+            'offset': len(target),
+            'fragment_start': 0,
+            'fragment': target,
+            'errors': 0,
+            'corrections': 0,
+            'focused': True,
+            'visible': True,
+            'events': [
+                {'dt_ms': 90 + (index % 5), 'kind': 'insert', 'trusted': True, 'delta': 1}
+                for index in range(len(target))
+            ],
+        }, ensure_ascii=False))
+
+        updated = socket.receive_json()
+        assert updated['type'] == 'snapshot'
+        verification = socket.receive_json()
+        assert verification == {
+            'type': 'verification',
+            'status': 'verified',
+            'risk_score': 4,
+        }
+        return updated
 
 
 def test_ranked_creation_requires_pro_and_validates_every_participant_server_side():
@@ -243,41 +290,8 @@ def test_ranked_websocket_uses_ticket_owned_identity_and_ticket_cannot_replay():
         target = challenge['target_text']
         ticket = challenge['ws_ticket']
 
-        with client.websocket_connect(
-            f"/v1/ranked/races/{race['race_id']}/ws/{challenge['challenge_id']}?ticket={ticket}"
-        ) as socket:
-            initial = socket.receive_json()
-            assert initial['type'] == 'snapshot'
-
-            socket.send_text(json.dumps({
-                'type': 'ranked_telemetry',
-                'challenge_id': challenge['challenge_id'],
-                'nonce': challenge['nonce'],
-                'batch_seq': 1,
-                'offset': len(target),
-                'fragment_start': 0,
-                'fragment': target,
-                'errors': 0,
-                'corrections': 0,
-                'focused': True,
-                'visible': True,
-                'events': [
-                    {'dt_ms': 90 + (index % 5), 'kind': 'insert', 'trusted': True, 'delta': 1}
-                    for index in range(len(target))
-                ],
-            }, ensure_ascii=False))
-
-            updated = socket.receive_json()
-            assert updated['type'] == 'snapshot'
-            assert updated['racers'][0]['offset'] == len(target)
-
-            verification = socket.receive_json()
-            assert verification == {
-                'type': 'verification',
-                'status': 'verified',
-                'risk_score': 4,
-            }
-
+        updated = _finish_ranked_socket(client, race['race_id'], challenge)
+        assert updated['racers'][0]['offset'] == len(target)
         assert anti_cheat.verified == [challenge['challenge_id']]
         assert tickets.consumed == [ticket]
 
@@ -288,3 +302,30 @@ def test_ranked_websocket_uses_ticket_owned_identity_and_ticket_cannot_replay():
                 raise AssertionError('replayed ticket unexpectedly connected')
         except Exception:
             pass
+
+
+def test_ranked_rating_is_applied_automatically_only_after_last_verified_finisher():
+    app, _, _ = _app()
+    ratings = app.state.race_results
+
+    with TestClient(app) as client:
+        race = client.post(
+            '/v1/ranked/races',
+            json={'player_ids': ['a', 'b']},
+            headers=_auth('pro-a'),
+        ).json()
+        race_id = race['race_id']
+
+        challenge_a = client.post(
+            f'/v1/ranked/races/{race_id}/challenge',
+            headers=_auth('pro-a'),
+        ).json()
+        _finish_ranked_socket(client, race_id, challenge_a)
+        assert ratings.requested_race_ids == []
+
+        challenge_b = client.post(
+            f'/v1/ranked/races/{race_id}/challenge',
+            headers=_auth('pro-b'),
+        ).json()
+        _finish_ranked_socket(client, race_id, challenge_b)
+        assert ratings.requested_race_ids == [race_id]

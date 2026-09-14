@@ -71,6 +71,24 @@ class RedisAntiCheatStore:
             raise ValueError('invalid anti-cheat state')
         return payload
 
+    @staticmethod
+    def _batch_observed_characters(events: tuple[TelemetryEvent, ...]) -> int:
+        return sum(
+            max(event.delta, 0)
+            for event in events
+            if event.kind in {TelemetryKind.INSERT, TelemetryKind.COMPOSITION}
+        )
+
+    @staticmethod
+    def _hard_reasons(events: tuple[TelemetryEvent, ...]) -> tuple[str, ...]:
+        reasons: list[str] = []
+        for event in events:
+            if event.kind is TelemetryKind.PASTE and event.delta > 0:
+                reasons.append('paste_advanced_text')
+            elif event.kind is TelemetryKind.DROP and event.delta > 0:
+                reasons.append('drop_advanced_text')
+        return tuple(dict.fromkeys(reasons))
+
     async def issue_challenge(self, race_id: str, player_id: str, *, target_text: str) -> RankedChallenge:
         if not race_id or not player_id:
             raise ValueError('race_id and player_id are required')
@@ -95,6 +113,9 @@ class RedisAntiCheatStore:
                 'finalized': False,
                 'events': [],
                 'accepted_characters': 0,
+                'observed_characters': 0,
+                'elapsed_ms': 0,
+                'hard_reasons': [],
                 'errors': 0,
                 'corrections': 0,
                 'focused_batches': 0,
@@ -209,6 +230,17 @@ class RedisAntiCheatStore:
                 stored_events.extend(self._event_to_dict(event) for event in events)
                 payload['events'] = stored_events[-MAX_STORED_EVENTS:]
                 payload['accepted_characters'] = max(int(payload.get('accepted_characters', 0)), accepted_characters)
+                payload['observed_characters'] = int(payload.get('observed_characters', 0)) + self._batch_observed_characters(events)
+                payload['elapsed_ms'] = int(payload.get('elapsed_ms', 0)) + sum(event.dt_ms for event in events)
+
+                existing_hard_reasons = payload.get('hard_reasons', [])
+                if not isinstance(existing_hard_reasons, list):
+                    existing_hard_reasons = []
+                payload['hard_reasons'] = list(dict.fromkeys([
+                    *(str(reason) for reason in existing_hard_reasons if reason),
+                    *self._hard_reasons(events),
+                ]))
+
                 payload['errors'] = max(int(payload.get('errors', 0)), errors)
                 payload['corrections'] = max(int(payload.get('corrections', 0)), corrections)
                 payload['batch_count'] = int(payload.get('batch_count', 0)) + 1
@@ -237,11 +269,25 @@ class RedisAntiCheatStore:
             for item in raw_events
             if isinstance(item, dict)
         )
+
+        hard_reasons_payload = payload.get('hard_reasons', [])
+        if not isinstance(hard_reasons_payload, list):
+            hard_reasons_payload = []
+
+        fallback_observed = self._batch_observed_characters(events)
+        fallback_elapsed = sum(event.dt_ms for event in events)
+        fallback_hard_reasons = self._hard_reasons(events)
         return TelemetryEvidence(
             events=events,
             accepted_characters=int(payload.get('accepted_characters', 0)),
             errors=int(payload.get('errors', 0)),
             corrections=int(payload.get('corrections', 0)),
+            observed_characters=int(payload.get('observed_characters', fallback_observed)),
+            elapsed_ms=int(payload.get('elapsed_ms', fallback_elapsed)),
+            hard_reasons=tuple(dict.fromkeys([
+                *(str(reason) for reason in hard_reasons_payload if reason),
+                *fallback_hard_reasons,
+            ])),
         )
 
     async def finalize(self, challenge_id: str) -> None:

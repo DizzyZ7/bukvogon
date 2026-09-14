@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSo
 from pydantic import BaseModel, Field
 
 from bukvogon.api.auth import require_pro_principal
+from bukvogon.domain.anti_cheat import VerificationStatus
 from bukvogon.domain.auth import AuthenticatedPrincipal
 from bukvogon.domain.entitlements import can_play_ranked
 from bukvogon.domain.race_protocol import (
@@ -66,6 +67,16 @@ def _auth_repository_from_request(request: Request):
 
 def _snapshot_message(snapshot: dict[str, object]) -> dict[str, object]:
     return {'type': 'snapshot', **snapshot}
+
+
+def _ranked_rating_ready(snapshot_message: dict[str, object]) -> bool:
+    racers = snapshot_message.get('racers')
+    if not isinstance(racers, list) or len(racers) < 2:
+        return False
+    return all(
+        isinstance(racer, dict) and racer.get('place') is not None
+        for racer in racers
+    )
 
 
 @router.post('/races', status_code=status.HTTP_201_CREATED)
@@ -299,6 +310,16 @@ async def ranked_race_websocket(
                 await hub.publish(race_id, snapshot_message)
 
                 decision = await anti_cheat.verify_finish(challenge_id)
+                if (
+                    decision.status is VerificationStatus.VERIFIED
+                    and _ranked_rating_ready(snapshot_message)
+                ):
+                    try:
+                        await websocket.app.state.race_results.apply_ranked_rating(race_id)
+                    except ValueError as exc:
+                        if str(exc) != 'ranked rating requires verified results':
+                            raise
+
                 await websocket.send_json({
                     'type': 'verification',
                     'status': decision.status.value,

@@ -109,6 +109,8 @@ class RankedAntiCheatService:
             raise ValueError('challenge binding mismatch')
         if state.finalized:
             raise ValueError('challenge finalized')
+        if batch.batch_seq != state.last_seq + 1:
+            raise ValueError('batch sequence mismatch')
 
         previous = await self._store.get_evidence(batch.challenge_id)
         if batch.fragment_start != previous.accepted_characters:

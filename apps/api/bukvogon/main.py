@@ -13,6 +13,7 @@ from bukvogon.infrastructure.postgres_auth import PostgresAuthRepository
 from bukvogon.infrastructure.postgres_results import PostgresRaceResultRepository
 from bukvogon.infrastructure.redis_anti_cheat import RedisAntiCheatStore
 from bukvogon.infrastructure.redis_races import RedisRaceBroker, RedisRaceStore
+from bukvogon.infrastructure.redis_ws_tickets import RedisWsTicketStore
 from bukvogon.services.anti_cheat import RankedAntiCheatService
 from bukvogon.services.auth import AuthService
 from bukvogon.services.races import RaceService
@@ -49,6 +50,7 @@ async def lifespan(app: FastAPI):
         store=anti_cheat_store,
         result_repository=result_repository,
     )
+    ws_ticket_store = RedisWsTicketStore(redis_client)
 
     app.state.redis_client = redis_client
     app.state.race_results = result_repository
@@ -58,6 +60,7 @@ async def lifespan(app: FastAPI):
     app.state.race_hub = race_hub
     app.state.anti_cheat_store = anti_cheat_store
     app.state.ranked_anti_cheat = ranked_anti_cheat
+    app.state.ws_ticket_store = ws_ticket_store
 
     try:
         yield

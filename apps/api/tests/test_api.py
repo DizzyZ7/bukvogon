@@ -1,9 +1,16 @@
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from bukvogon.main import app
 
 
 client = TestClient(app)
+
+
+class FakeRankedRatingRepository:
+    async def apply_ranked_rating(self, race_id: str):
+        return SimpleNamespace(ratings={'a': 1016.0, 'b': 984.0}, applied=True)
 
 
 def test_health_endpoint():
@@ -52,6 +59,7 @@ def test_typing_validation_uses_mode_specific_yo_rule():
 
 
 def test_ranked_rate_has_no_public_client_trigger():
+    app.state.race_results = FakeRankedRatingRepository()
     response = client.post('/v1/ranked/rate', json={'race_id': 'race-verified'})
     assert response.status_code == 404
 

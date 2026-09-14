@@ -21,7 +21,7 @@ The client is untrusted.
 Authoritative server inputs are:
 
 - server-created race id;
-- server-selected text and text length;
+- server-selected target text and text length;
 - one-time race challenge nonce;
 - player membership and entitlement;
 - monotonic server receive timestamps;
@@ -42,10 +42,11 @@ At countdown start the server creates a one-time challenge:
 - `challenge_id`;
 - cryptographically random `nonce`;
 - target text id/content;
-- `issued_at` and short expiry;
+- `issued_at`;
+- `start_deadline`, initially 60 seconds after issuance;
 - initial event sequence `0`.
 
-The challenge is bound to the race/player pair in Redis and expires with the active race TTL. Reusing a nonce or submitting events for a different race/player invalidates the run.
+The challenge is bound to the race/player pair in Redis. It must be started before `start_deadline`; after the first accepted race input it remains bound to that active race and expires with the race TTL. Reusing a completed/invalidated nonce or submitting events for a different race/player invalidates the run.
 
 The challenge is not intended as a secret once delivered to the browser. Its purpose is freshness, binding and replay resistance, not DRM.
 
@@ -56,8 +57,8 @@ Ranked input is captured only while the game input owns focus. The browser batch
 Each batch contains:
 
 - monotonically increasing `batch_seq`;
-- challenge id / nonce proof reference;
-- current server-validatable text offset;
+- challenge id and nonce;
+- current server-validatable confirmed-prefix offset;
 - compact input event records since the previous accepted batch;
 - cumulative corrections/errors counters;
 - current document visibility/focus state.
@@ -68,22 +69,24 @@ Each compact event record contains only gameplay metadata:
 - `kind`: insert, backspace/delete, composition, paste/drop/other;
 - `trusted`: browser event `isTrusted` observation;
 - `delta`: bounded character-count change;
+- `text`: only for insert/composition events, a tightly bounded fragment entered into the BukvoGon race field so the server can compare it with the target text;
 - optional input-type category needed to distinguish keyboard text input from paste/composition.
 
-The audit stream does not collect key presses outside the race. It does not persist arbitrary global key names, shortcuts, passwords or background keyboard activity.
+`text` is limited to the active race field and is compared against server-owned target text. The audit stream does not collect key presses outside the race. It does not persist arbitrary global key names, shortcuts, passwords or background keyboard activity.
 
-The target text already exists on the server. The server validates progress against that text rather than treating a client-provided typed string as authoritative.
+The target text already exists on the server. The server advances the authoritative confirmed-prefix offset only when accepted gameplay input reconciles with that target. Client-provided offset is therefore a consistency claim, not the source of truth.
 
 ## Protocol limits
 
 Existing realtime limits remain the first defense:
 
 - WebSocket message size remains bounded;
-- progress batches are accepted no faster than the configured realtime cadence;
+- progress/telemetry batches are accepted no faster than the configured realtime cadence;
 - batch sequence must strictly increase;
-- offset may never move backwards except through an explicitly represented correction path;
-- offset may not exceed target length;
-- cumulative event deltas must be compatible with claimed progress;
+- authoritative confirmed-prefix offset is monotonic and never moves backwards;
+- backspaces/corrections are represented in telemetry/counters rather than by decrementing authoritative confirmed progress;
+- confirmed offset may not exceed target length;
+- cumulative event deltas and inserted race text must be compatible with claimed progress;
 - duplicate/replayed batches are ignored or rejected;
 - unknown fields/event kinds are rejected.
 
@@ -96,9 +99,9 @@ The following invalidate the Ranked result without automatically banning the acc
 - wrong/expired/replayed challenge;
 - player/race binding mismatch;
 - impossible sequence jump/replay;
-- progress that cannot be reconciled with accepted input events;
+- progress that cannot be reconciled with accepted gameplay input and server target text;
 - paste/drop/autofill used to advance Ranked text;
-- invalid offset beyond the text;
+- invalid confirmed offset beyond the text;
 - finish received without sufficient accepted event evidence;
 - malformed telemetry designed to bypass protocol validation.
 
@@ -124,7 +127,7 @@ Initial feature groups:
 3. **Input provenance evidence**
    - fraction of untrusted browser events;
    - paste/drop/composition anomalies;
-   - mismatch between event count/deltas and progress.
+   - mismatch between event count/deltas/text and progress.
 
 4. **Human correction behavior**
    - error/backspace distribution;
@@ -144,14 +147,13 @@ Every Ranked result has one of four server-owned states:
 
 - `provisional`: race completed and awaits final risk evaluation;
 - `verified`: accepted for MMR and official leaderboard;
-- `review`: suspicious enough to withhold Top-1000/leaderboard promotion pending additional evidence;
+- `review`: suspicious enough to withhold official leaderboard/MMR promotion pending additional evidence;
 - `invalid`: hard protocol/challenge violation; no MMR/leaderboard effect.
 
 Default thresholds for the first implementation:
 
 - risk `0..34`: `verified`;
-- risk `35..64`: `review`;
-- risk `65..100`: `review` unless a hard-invalidating rule applies;
+- risk `35..100`: `review` unless a hard-invalidating rule applies;
 - hard-invalidating rule: `invalid` regardless of score.
 
 These thresholds are configuration, not public protocol constants. We log distributions before tightening them.
@@ -165,7 +167,7 @@ A Ranked finish is first persisted as `provisional`.
 Rating/leaderboard mutation occurs only after verification:
 
 - `verified`: eligible for MMR and leaderboard update;
-- `review`: race result remains stored but does not improve official leaderboard position until resolved;
+- `review`: race result remains stored but does not improve official rating/leaderboard position until resolved;
 - `invalid`: no MMR/leaderboard update;
 - a later review can promote `review` to `verified` idempotently.
 
@@ -193,6 +195,7 @@ Redis holds active anti-cheat state with the race TTL:
 
 - challenge binding;
 - last accepted sequence;
+- server-authoritative confirmed prefix;
 - rolling counters;
 - bounded recent timing window;
 - replay markers.
@@ -267,10 +270,11 @@ Planned boundaries:
 
 Unit tests must cover:
 
-- valid challenge binding and expiry;
+- valid challenge binding and start deadline;
 - nonce replay;
 - sequence replay/out-of-order batches;
 - paste advancing Ranked text;
+- inserted text/target mismatch;
 - impossible progress/event mismatch;
 - normal varied human-like timing -> low risk;
 - fast but varied timing -> not automatically invalid;
@@ -300,18 +304,19 @@ Load tests before public Ranked launch must measure:
 
 ## Rollout
 
-1. Ship telemetry collection and scoring in shadow mode: every result still behaves as before, scores are observed only.
+1. In staging/closed beta only, ship telemetry collection and scoring in shadow mode while results are not treated as an official public leaderboard.
 2. Inspect distributions from real testers and calibrate thresholds.
-3. Enable `provisional -> verified/review/invalid` gating for Ranked.
-4. Enable Top-1000 high-assurance gate.
+3. Before public Ranked launch, enable `provisional -> verified/review/invalid` gating for all official MMR/leaderboard mutations.
+4. Enable Top-1000 high-assurance gate before public Top-1000 prestige is awarded.
 5. Only after enough evidence, consider account-level sanctions for repeated confirmed abuse; sanctions are explicitly outside the initial implementation.
 
 ## Security invariants
 
 - Client cannot set its own verification status or risk score.
 - Client cannot directly submit a leaderboard position.
+- Authoritative confirmed progress is derived from accepted race-field input against the server target, not from client offset alone.
 - High CPM alone never bans or invalidates a race.
 - Pro subscription never weakens anti-cheat requirements.
-- No Ranked result affects Top-1000 before server verification.
+- No Ranked result affects MMR or Top-1000 before server verification.
 - No raw database/token/anti-cheat secrets are committed to Git.
 - Anti-cheat captures gameplay input only, never global keyboard activity.

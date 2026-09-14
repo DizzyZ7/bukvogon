@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from bukvogon.domain.anti_cheat import VerificationStatus
 from bukvogon.domain.typing import TypingMode
 
 
@@ -32,6 +33,7 @@ class RankedPlayerPayload(BaseModel):
 class RankedResultPayload(BaseModel):
     user_id: str = Field(min_length=1)
     place: int = Field(ge=1)
+    verification_status: VerificationStatus
 
 
 class RankedRateRequest(BaseModel):

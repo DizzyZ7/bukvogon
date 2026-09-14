@@ -47,7 +47,10 @@ def ranked_rate(payload: RankedRateRequest) -> RankedRateResponse:
     try:
         ratings = engine.rate(
             [RankedPlayer(player.user_id, player.rating) for player in payload.players],
-            [RankedResult(result.user_id, result.place) for result in payload.results],
+            [
+                RankedResult(result.user_id, result.place, result.verification_status)
+                for result in payload.results
+            ],
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

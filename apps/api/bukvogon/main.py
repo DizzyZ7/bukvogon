@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from redis.asyncio import Redis
 
 from bukvogon.api.auth import auth_router
+from bukvogon.api.leaderboard import router as leaderboard_router
 from bukvogon.api.race_routes import router as race_router
 from bukvogon.api.routes import router as v1_router
 from bukvogon.infrastructure.postgres_auth import PostgresAuthRepository
@@ -81,4 +82,5 @@ def health() -> dict[str, str]:
 
 app.include_router(v1_router, prefix='/v1')
 app.include_router(auth_router, prefix='/v1')
+app.include_router(leaderboard_router, prefix='/v1')
 app.include_router(race_router, prefix='/v1')

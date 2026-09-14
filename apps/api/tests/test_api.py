@@ -1,9 +1,21 @@
 from fastapi.testclient import TestClient
 
+from bukvogon.domain.anti_cheat import VerificationStatus
+from bukvogon.domain.ranked import RankedResult
 from bukvogon.main import app
 
 
 client = TestClient(app)
+
+
+class FakeRaceResultsRepository:
+    def __init__(self, results):
+        self.results = list(results)
+        self.requested_race_ids = []
+
+    async def fetch_ranked_results(self, race_id: str):
+        self.requested_race_ids.append(race_id)
+        return list(self.results)
 
 
 def test_health_endpoint():
@@ -51,34 +63,40 @@ def test_typing_validation_uses_mode_specific_yo_rule():
     assert ranked.json()['error_index'] == 0
 
 
-def test_ranked_rate_contract_returns_new_ratings_for_verified_results():
+def test_ranked_rate_contract_uses_server_results_and_returns_new_ratings():
+    repository = FakeRaceResultsRepository([
+        RankedResult('a', 1, VerificationStatus.VERIFIED),
+        RankedResult('b', 2, VerificationStatus.VERIFIED),
+    ])
+    app.state.race_results = repository
+
     response = client.post('/v1/ranked/rate', json={
+        'race_id': 'race-verified',
         'players': [
             {'user_id': 'a', 'rating': 1000},
             {'user_id': 'b', 'rating': 1000},
-        ],
-        'results': [
-            {'user_id': 'a', 'place': 1, 'verification_status': 'verified'},
-            {'user_id': 'b', 'place': 2, 'verification_status': 'verified'},
         ],
         'k_factor': 32,
     })
 
     assert response.status_code == 200
+    assert repository.requested_race_ids == ['race-verified']
     ratings = response.json()['ratings']
     assert ratings['a'] > 1000
     assert ratings['b'] < 1000
 
 
-def test_ranked_rate_rejects_provisional_result():
+def test_ranked_rate_rejects_provisional_result_loaded_from_server():
+    app.state.race_results = FakeRaceResultsRepository([
+        RankedResult('a', 1, VerificationStatus.VERIFIED),
+        RankedResult('b', 2, VerificationStatus.PROVISIONAL),
+    ])
+
     response = client.post('/v1/ranked/rate', json={
+        'race_id': 'race-provisional',
         'players': [
             {'user_id': 'a', 'rating': 1000},
             {'user_id': 'b', 'rating': 1000},
-        ],
-        'results': [
-            {'user_id': 'a', 'place': 1, 'verification_status': 'verified'},
-            {'user_id': 'b', 'place': 2, 'verification_status': 'provisional'},
         ],
     })
 
@@ -86,15 +104,21 @@ def test_ranked_rate_rejects_provisional_result():
     assert 'verified results' in response.json()['detail']
 
 
-def test_ranked_rate_does_not_treat_missing_verification_as_verified():
+def test_ranked_rate_rejects_client_supplied_result_or_verification_override():
+    app.state.race_results = FakeRaceResultsRepository([
+        RankedResult('a', 1, VerificationStatus.REVIEW),
+        RankedResult('b', 2, VerificationStatus.REVIEW),
+    ])
+
     response = client.post('/v1/ranked/rate', json={
+        'race_id': 'race-review',
         'players': [
             {'user_id': 'a', 'rating': 1000},
             {'user_id': 'b', 'rating': 1000},
         ],
         'results': [
-            {'user_id': 'a', 'place': 1},
-            {'user_id': 'b', 'place': 2},
+            {'user_id': 'a', 'place': 1, 'verification_status': 'verified'},
+            {'user_id': 'b', 'place': 2, 'verification_status': 'verified'},
         ],
     })
 

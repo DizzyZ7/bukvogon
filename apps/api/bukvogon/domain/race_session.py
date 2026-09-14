@@ -48,6 +48,8 @@ class RaceSession:
     players: dict[str, RacePlayerState] = field(default_factory=dict)
     status: RaceStatus = RaceStatus.RUNNING
     finish_counter: int = 0
+    ranked: bool = False
+    target_text: str | None = None
 
     @classmethod
     def create(
@@ -56,6 +58,8 @@ class RaceSession:
         *,
         text_length: int,
         player_ids: list[str] | tuple[str, ...],
+        ranked: bool = False,
+        target_text: str | None = None,
     ) -> 'RaceSession':
         if text_length <= 0:
             raise ValueError('text length must be positive')
@@ -65,11 +69,17 @@ class RaceSession:
             raise ValueError(f'race supports at most {MAX_RACE_PLAYERS} players')
         if len(set(player_ids)) != len(player_ids):
             raise ValueError('player ids must be unique')
+        if ranked and not target_text:
+            raise ValueError('ranked race requires target text')
+        if target_text is not None and len(target_text) != text_length:
+            raise ValueError('target text length must match race text length')
 
         return cls(
             race_id=race_id,
             text_length=text_length,
             players={player_id: RacePlayerState(player_id=player_id) for player_id in player_ids},
+            ranked=ranked,
+            target_text=target_text,
         )
 
     def apply_progress(
@@ -127,6 +137,8 @@ class RaceSession:
             'text_length': self.text_length,
             'status': self.status.value,
             'finish_counter': self.finish_counter,
+            'ranked': self.ranked,
+            'target_text': self.target_text,
             'players': [player.to_dict() for player in self.players.values()],
         }
 
@@ -136,10 +148,13 @@ class RaceSession:
         if not isinstance(player_payloads, list):
             raise ValueError('players must be a list')
         players = [RacePlayerState.from_dict(item) for item in player_payloads if isinstance(item, dict)]
+        target_text_raw = payload.get('target_text')
         return cls(
             race_id=str(payload['race_id']),
             text_length=int(payload['text_length']),
             status=RaceStatus(str(payload.get('status', RaceStatus.RUNNING.value))),
             finish_counter=int(payload.get('finish_counter', 0)),
+            ranked=bool(payload.get('ranked', False)),
+            target_text=(None if target_text_raw is None else str(target_text_raw)),
             players={player.player_id: player for player in players},
         )

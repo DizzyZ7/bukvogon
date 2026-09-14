@@ -3,7 +3,7 @@ import asyncio
 import fakeredis.aioredis
 import pytest
 
-from bukvogon.domain.anti_cheat import TelemetryEvent, TelemetryKind
+from bukvogon.domain.anti_cheat import TelemetryEvent, TelemetryKind, VerificationStatus, evaluate_evidence
 from bukvogon.infrastructure.redis_anti_cheat import MAX_STORED_EVENTS, RedisAntiCheatStore
 
 
@@ -109,8 +109,51 @@ def test_evidence_buffer_is_bounded_and_keeps_cumulative_counters():
 
         assert len(evidence.events) == MAX_STORED_EVENTS
         assert evidence.accepted_characters == MAX_STORED_EVENTS + 40
+        assert evidence.observed_characters == MAX_STORED_EVENTS + 40
+        assert evidence.elapsed_ms == sum(event.dt_ms for event in events)
         assert evidence.errors == 3
         assert evidence.corrections == 2
+        await client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_hard_violation_survives_event_buffer_trimming():
+    async def scenario():
+        client = fakeredis.aioredis.FakeRedis(decode_responses=True)
+        store = RedisAntiCheatStore(client)
+        challenge = await store.issue_challenge('race-long', 'player-1', target_text='а' * 700)
+        first = (TelemetryEvent(dt_ms=5, kind=TelemetryKind.PASTE, trusted=True, delta=3),)
+        later = tuple(
+            TelemetryEvent(dt_ms=60 + (index % 9), kind=TelemetryKind.INSERT, trusted=True, delta=1)
+            for index in range(MAX_STORED_EVENTS + 80)
+        )
+
+        await store.append_evidence(
+            challenge.challenge_id,
+            events=first,
+            accepted_characters=3,
+            errors=0,
+            corrections=0,
+            focused=True,
+            visible=True,
+        )
+        await store.append_evidence(
+            challenge.challenge_id,
+            events=later,
+            accepted_characters=3 + len(later),
+            errors=0,
+            corrections=0,
+            focused=True,
+            visible=True,
+        )
+        evidence = await store.get_evidence(challenge.challenge_id)
+        decision = evaluate_evidence(evidence)
+
+        assert len(evidence.events) == MAX_STORED_EVENTS
+        assert 'paste_advanced_text' in evidence.hard_reasons
+        assert decision.status is VerificationStatus.INVALID
+        assert 'paste_advanced_text' in decision.reasons
         await client.aclose()
 
     asyncio.run(scenario())

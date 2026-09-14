@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import time
 from uuid import uuid4
 
@@ -230,20 +229,26 @@ async def ranked_race_websocket(
                 continue
 
             last_accepted_at = now
-            snapshot = await service.get_snapshot(race_id)
-            await hub.publish(race_id, _snapshot_message(snapshot))
+            snapshot_message = _snapshot_message(await service.get_snapshot(race_id))
 
             if player.place is not None:
+                # The finisher gets its authoritative final position before any
+                # verification status. Remove it from local fan-out first so the
+                # same final snapshot is not echoed back a second time.
+                await websocket.send_json(snapshot_message)
+                await hub.remove(race_id, websocket)
+                joined = False
+                await hub.publish(race_id, snapshot_message)
+
                 decision = await anti_cheat.verify_finish(challenge_id)
-                # Give the local per-race fan-out task one event-loop turn so the
-                # final snapshot reaches this socket before its verification result.
-                await asyncio.sleep(0)
                 await websocket.send_json({
                     'type': 'verification',
                     'status': decision.status.value,
                     'risk_score': decision.risk_score,
                 })
                 return
+
+            await hub.publish(race_id, snapshot_message)
 
     except WebSocketDisconnect:
         return

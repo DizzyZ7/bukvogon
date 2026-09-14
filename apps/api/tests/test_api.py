@@ -51,7 +51,42 @@ def test_typing_validation_uses_mode_specific_yo_rule():
     assert ranked.json()['error_index'] == 0
 
 
-def test_ranked_rate_contract_returns_new_ratings():
+def test_ranked_rate_contract_returns_new_ratings_for_verified_results():
+    response = client.post('/v1/ranked/rate', json={
+        'players': [
+            {'user_id': 'a', 'rating': 1000},
+            {'user_id': 'b', 'rating': 1000},
+        ],
+        'results': [
+            {'user_id': 'a', 'place': 1, 'verification_status': 'verified'},
+            {'user_id': 'b', 'place': 2, 'verification_status': 'verified'},
+        ],
+        'k_factor': 32,
+    })
+
+    assert response.status_code == 200
+    ratings = response.json()['ratings']
+    assert ratings['a'] > 1000
+    assert ratings['b'] < 1000
+
+
+def test_ranked_rate_rejects_provisional_result():
+    response = client.post('/v1/ranked/rate', json={
+        'players': [
+            {'user_id': 'a', 'rating': 1000},
+            {'user_id': 'b', 'rating': 1000},
+        ],
+        'results': [
+            {'user_id': 'a', 'place': 1, 'verification_status': 'verified'},
+            {'user_id': 'b', 'place': 2, 'verification_status': 'provisional'},
+        ],
+    })
+
+    assert response.status_code == 422
+    assert 'verified results' in response.json()['detail']
+
+
+def test_ranked_rate_does_not_treat_missing_verification_as_verified():
     response = client.post('/v1/ranked/rate', json={
         'players': [
             {'user_id': 'a', 'rating': 1000},
@@ -61,13 +96,9 @@ def test_ranked_rate_contract_returns_new_ratings():
             {'user_id': 'a', 'place': 1},
             {'user_id': 'b', 'place': 2},
         ],
-        'k_factor': 32,
     })
 
-    assert response.status_code == 200
-    ratings = response.json()['ratings']
-    assert ratings['a'] > 1000
-    assert ratings['b'] < 1000
+    assert response.status_code == 422
 
 
 def test_production_app_registers_realtime_race_routes():

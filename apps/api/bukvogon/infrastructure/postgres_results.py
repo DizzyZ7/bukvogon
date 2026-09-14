@@ -10,6 +10,7 @@ import asyncpg
 from bukvogon.domain.anti_cheat import AntiCheatDecision, VerificationStatus
 from bukvogon.domain.ranked import (
     MultiplayerEloEngine,
+    RankedLeaderboardEntry,
     RankedPlayer,
     RankedRatingApplication,
     RankedResult,
@@ -130,6 +131,23 @@ SET rating = $2,
     games_played = games_played + 1,
     updated_at = NOW()
 WHERE player_id = $1
+'''
+
+_FETCH_RANKED_LEADERBOARD = '''
+SELECT player_id, rating, games_played, position
+FROM (
+    SELECT
+        player_id,
+        rating,
+        games_played,
+        ROW_NUMBER() OVER (
+            ORDER BY rating DESC, games_played DESC, player_id ASC
+        ) AS position
+    FROM ranked_player_ratings
+    WHERE games_played > 0
+) ranked
+ORDER BY position ASC
+LIMIT $1
 '''
 
 
@@ -295,6 +313,25 @@ class PostgresRaceResultRepository:
                     )
 
                 return RankedRatingApplication(ratings=updated_ratings, applied=True)
+
+    async def fetch_ranked_leaderboard(self, *, limit: int = 1000) -> list[RankedLeaderboardEntry]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+            raise ValueError('leaderboard limit must be between 1 and 1000')
+
+        pool = await self._get_pool()
+        await self._ensure_schema(pool)
+        async with pool.acquire() as connection:
+            rows = await connection.fetch(_FETCH_RANKED_LEADERBOARD, limit)
+
+        return [
+            RankedLeaderboardEntry(
+                user_id=str(row['player_id']),
+                rating=float(row['rating']),
+                games_played=int(row['games_played']),
+                position=int(row['position']),
+            )
+            for row in rows
+        ]
 
     async def close(self) -> None:
         if self._pool is None:

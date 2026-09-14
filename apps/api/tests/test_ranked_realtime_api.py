@@ -195,15 +195,19 @@ def _finish_ranked_socket(client, race_id, challenge):
             ],
         }, ensure_ascii=False))
 
-        updated = socket.receive_json()
-        assert updated['type'] == 'snapshot'
-        verification = socket.receive_json()
-        assert verification == {
-            'type': 'verification',
-            'status': 'verified',
-            'risk_score': 4,
-        }
-        return updated
+        last_snapshot = None
+        while True:
+            message = socket.receive_json()
+            if message['type'] == 'snapshot':
+                last_snapshot = message
+                continue
+            assert message == {
+                'type': 'verification',
+                'status': 'verified',
+                'risk_score': 4,
+            }
+            assert last_snapshot is not None
+            return last_snapshot
 
 
 def test_ranked_creation_requires_pro_and_validates_every_participant_server_side():

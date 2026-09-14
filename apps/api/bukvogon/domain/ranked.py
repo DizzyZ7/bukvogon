@@ -40,6 +40,18 @@ class RankedRatingApplication:
     applied: bool
 
 
+@dataclass(frozen=True, slots=True)
+class RankedLeaderboardEntry:
+    user_id: str
+    rating: float
+    games_played: int
+    position: int
+
+    @property
+    def is_top_1000(self) -> bool:
+        return 1 <= self.position <= 1000
+
+
 def check_ranked_eligibility(entitlement: Entitlement) -> RankedEligibility:
     if can_play_ranked(entitlement):
         return RankedEligibility(allowed=True)

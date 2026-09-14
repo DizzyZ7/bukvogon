@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 import secrets
 from uuid import uuid4
@@ -43,6 +44,11 @@ class RedisAntiCheatStore:
         return f'bukvogon:anticheat:{challenge_id}'
 
     @staticmethod
+    def binding_key_for(race_id: str, player_id: str) -> str:
+        digest = hashlib.sha256(f'{race_id}\0{player_id}'.encode('utf-8')).hexdigest()
+        return f'bukvogon:anticheat-binding:{digest}'
+
+    @staticmethod
     def _event_to_dict(event: TelemetryEvent) -> dict[str, object]:
         return {
             'dt_ms': event.dt_ms,
@@ -72,6 +78,16 @@ class RedisAntiCheatStore:
         return payload
 
     @staticmethod
+    def _challenge_from_payload(payload: dict[str, object]) -> RankedChallenge:
+        return RankedChallenge(
+            challenge_id=str(payload['challenge_id']),
+            nonce=str(payload['nonce']),
+            race_id=str(payload['race_id']),
+            player_id=str(payload['player_id']),
+            target_text=str(payload['target_text']),
+        )
+
+    @staticmethod
     def _batch_observed_characters(events: tuple[TelemetryEvent, ...]) -> int:
         return sum(
             max(event.delta, 0)
@@ -95,42 +111,63 @@ class RedisAntiCheatStore:
         if not target_text:
             raise ValueError('target_text is required')
 
-        for _ in range(3):
-            challenge = RankedChallenge(
-                challenge_id=uuid4().hex,
-                nonce=secrets.token_urlsafe(24),
-                race_id=race_id,
-                player_id=player_id,
-                target_text=target_text,
-            )
-            state = {
-                'challenge_id': challenge.challenge_id,
-                'nonce': challenge.nonce,
-                'race_id': race_id,
-                'player_id': player_id,
-                'target_text': target_text,
-                'last_seq': 0,
-                'finalized': False,
-                'events': [],
-                'accepted_characters': 0,
-                'observed_characters': 0,
-                'elapsed_ms': 0,
-                'hard_reasons': [],
-                'errors': 0,
-                'corrections': 0,
-                'focused_batches': 0,
-                'visible_batches': 0,
-                'batch_count': 0,
-            }
-            created = await self._client.set(
-                self.key_for(challenge.challenge_id),
-                json.dumps(state, ensure_ascii=False, separators=(',', ':')),
-                ex=self._ttl_seconds,
-                nx=True,
-            )
-            if created:
+        binding_key = self.binding_key_for(race_id, player_id)
+        while True:
+            pipeline = self._client.pipeline(transaction=True)
+            try:
+                await pipeline.watch(binding_key)
+                existing_id = await pipeline.get(binding_key)
+                if existing_id is not None:
+                    existing_raw = await pipeline.get(self.key_for(str(existing_id)))
+                    if existing_raw is not None:
+                        payload = self._decode(existing_raw)
+                        if payload.get('race_id') != race_id or payload.get('player_id') != player_id:
+                            raise ValueError('challenge binding mismatch')
+                        if str(payload.get('target_text')) != target_text:
+                            raise ValueError('challenge target mismatch')
+                        if bool(payload.get('finalized', False)):
+                            raise ValueError('challenge finalized')
+                        return self._challenge_from_payload(payload)
+
+                challenge = RankedChallenge(
+                    challenge_id=uuid4().hex,
+                    nonce=secrets.token_urlsafe(24),
+                    race_id=race_id,
+                    player_id=player_id,
+                    target_text=target_text,
+                )
+                state = {
+                    'challenge_id': challenge.challenge_id,
+                    'nonce': challenge.nonce,
+                    'race_id': race_id,
+                    'player_id': player_id,
+                    'target_text': target_text,
+                    'last_seq': 0,
+                    'finalized': False,
+                    'events': [],
+                    'accepted_characters': 0,
+                    'observed_characters': 0,
+                    'elapsed_ms': 0,
+                    'hard_reasons': [],
+                    'errors': 0,
+                    'corrections': 0,
+                    'focused_batches': 0,
+                    'visible_batches': 0,
+                    'batch_count': 0,
+                }
+                pipeline.multi()
+                pipeline.set(
+                    self.key_for(challenge.challenge_id),
+                    json.dumps(state, ensure_ascii=False, separators=(',', ':')),
+                    ex=self._ttl_seconds,
+                )
+                pipeline.set(binding_key, challenge.challenge_id, ex=self._ttl_seconds)
+                await pipeline.execute()
                 return challenge
-        raise RuntimeError('failed to allocate unique anti-cheat challenge')
+            except WatchError:
+                continue
+            finally:
+                await pipeline.reset()
 
     async def _load_payload(self, challenge_id: str) -> dict[str, object]:
         raw = await self._client.get(self.key_for(challenge_id))

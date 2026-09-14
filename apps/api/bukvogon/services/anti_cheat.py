@@ -62,6 +62,9 @@ def _compact_audit_trace(evidence: TelemetryEvidence, decision: AntiCheatDecisio
         'verifier_version': VERIFIER_VERSION,
         'event_count': len(evidence.events),
         'accepted_characters': evidence.accepted_characters,
+        'observed_characters': evidence.observed_characters,
+        'elapsed_ms': evidence.elapsed_ms,
+        'hard_reasons': list(evidence.hard_reasons),
         'errors': evidence.errors,
         'corrections': evidence.corrections,
         'risk_score': decision.risk_score,
@@ -79,7 +82,7 @@ def _compact_audit_trace(evidence: TelemetryEvidence, decision: AntiCheatDecisio
 
 
 def _server_metrics(evidence: TelemetryEvidence) -> AcceptedRankedProgress:
-    elapsed_ms = sum(event.dt_ms for event in evidence.events)
+    elapsed_ms = evidence.elapsed_ms or 0
     cpm = 0 if elapsed_ms <= 0 else round(evidence.accepted_characters * 60_000 / elapsed_ms)
     attempts = evidence.accepted_characters + evidence.errors
     accuracy = 1.0 if attempts <= 0 else evidence.accepted_characters / attempts

@@ -34,6 +34,12 @@ class RankedResult:
     verification_status: VerificationStatus
 
 
+@dataclass(frozen=True, slots=True)
+class RankedRatingApplication:
+    ratings: dict[str, float]
+    applied: bool
+
+
 def check_ranked_eligibility(entitlement: Entitlement) -> RankedEligibility:
     if can_play_ranked(entitlement):
         return RankedEligibility(allowed=True)

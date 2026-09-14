@@ -76,8 +76,16 @@ class RaceService:
         *,
         text_length: int,
         player_ids: list[str] | tuple[str, ...],
+        ranked: bool = False,
+        target_text: str | None = None,
     ) -> RaceSession:
-        race = RaceSession.create(race_id, text_length=text_length, player_ids=player_ids)
+        race = RaceSession.create(
+            race_id,
+            text_length=text_length,
+            player_ids=player_ids,
+            ranked=ranked,
+            target_text=target_text,
+        )
         await self._store.create(race)
         return race
 

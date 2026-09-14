@@ -15,7 +15,6 @@ from bukvogon.domain.entitlements import (
     can_play_ranked,
     can_view_leaderboard,
 )
-from bukvogon.domain.ranked import MultiplayerEloEngine, RankedPlayer
 from bukvogon.domain.typing import validate_typed_prefix
 
 router = APIRouter()
@@ -43,14 +42,12 @@ def typing_validate(payload: TypingValidationRequest) -> TypingValidationRespons
 
 @router.post('/ranked/rate', response_model=RankedRateResponse)
 async def ranked_rate(payload: RankedRateRequest, request: Request) -> RankedRateResponse:
-    engine = MultiplayerEloEngine(k_factor=payload.k_factor)
     result_repository = request.app.state.race_results
     try:
-        results = await result_repository.fetch_ranked_results(payload.race_id)
-        ratings = engine.rate(
-            [RankedPlayer(player.user_id, player.rating) for player in payload.players],
-            results,
-        )
+        application = await result_repository.apply_ranked_rating(payload.race_id)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return RankedRateResponse(ratings=ratings)
+    return RankedRateResponse(
+        ratings=application.ratings,
+        applied=application.applied,
+    )

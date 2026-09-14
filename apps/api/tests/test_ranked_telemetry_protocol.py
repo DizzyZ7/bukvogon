@@ -45,15 +45,15 @@ def test_rejects_unknown_top_level_fields():
         parse_ranked_telemetry_batch(json.dumps(payload, ensure_ascii=False))
 
 
-def test_rejects_more_than_64_events_per_batch():
+def test_rejects_more_than_16_events_per_batch():
     payload = _payload()
     payload['events'] = [
-        {'dt_ms': 10, 'kind': 'insert', 'trusted': True, 'delta': 1, 'input_type': 'insertText'}
-        for _ in range(65)
+        {'dt_ms': 10, 'kind': 'insert', 'trusted': True, 'delta': 1}
+        for _ in range(17)
     ]
 
     with pytest.raises(ValueError, match='too many telemetry events'):
-        parse_ranked_telemetry_batch(json.dumps(payload))
+        parse_ranked_telemetry_batch(json.dumps(payload, separators=(',', ':')))
 
 
 def test_rejects_unknown_event_kind():

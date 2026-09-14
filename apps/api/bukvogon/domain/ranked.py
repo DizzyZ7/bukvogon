@@ -3,12 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import pow
 
+from bukvogon.domain.anti_cheat import VerificationStatus
 from bukvogon.domain.entitlements import Entitlement, can_play_ranked
 
 
 @dataclass(frozen=True, slots=True)
 class RankedEligibility:
     allowed: bool
+    reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitiveResultEligibility:
+    counts_for_mmr: bool
+    visible_on_leaderboard: bool
+    eligible_for_top_1000: bool
     reason: str | None = None
 
 
@@ -22,12 +31,30 @@ class RankedPlayer:
 class RankedResult:
     user_id: str
     place: int
+    verification_status: VerificationStatus
 
 
 def check_ranked_eligibility(entitlement: Entitlement) -> RankedEligibility:
     if can_play_ranked(entitlement):
         return RankedEligibility(allowed=True)
     return RankedEligibility(allowed=False, reason="pro_required")
+
+
+def check_competitive_result_eligibility(
+    verification_status: VerificationStatus,
+) -> CompetitiveResultEligibility:
+    if verification_status is VerificationStatus.VERIFIED:
+        return CompetitiveResultEligibility(
+            counts_for_mmr=True,
+            visible_on_leaderboard=True,
+            eligible_for_top_1000=True,
+        )
+    return CompetitiveResultEligibility(
+        counts_for_mmr=False,
+        visible_on_leaderboard=False,
+        eligible_for_top_1000=False,
+        reason='verified_result_required',
+    )
 
 
 class MultiplayerEloEngine:
@@ -55,6 +82,11 @@ class MultiplayerEloEngine:
     ) -> dict[str, float]:
         if len(players) < 2:
             raise ValueError("at least two players are required")
+        if any(
+            not check_competitive_result_eligibility(result.verification_status).counts_for_mmr
+            for result in results
+        ):
+            raise ValueError('ranked rating requires verified results')
 
         player_ids = [player.user_id for player in players]
         result_ids = [result.user_id for result in results]

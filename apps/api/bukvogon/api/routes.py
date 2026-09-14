@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter
 
 from bukvogon.api.models import (
     AccessResponse,
-    RankedRateRequest,
-    RankedRateResponse,
     TypingValidationRequest,
     TypingValidationResponse,
 )
@@ -37,17 +35,4 @@ def typing_validate(payload: TypingValidationRequest) -> TypingValidationRespons
         valid=result.valid,
         matched_characters=result.matched_characters,
         error_index=result.error_index,
-    )
-
-
-@router.post('/ranked/rate', response_model=RankedRateResponse)
-async def ranked_rate(payload: RankedRateRequest, request: Request) -> RankedRateResponse:
-    result_repository = request.app.state.race_results
-    try:
-        application = await result_repository.apply_ranked_rating(payload.race_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return RankedRateResponse(
-        ratings=application.ratings,
-        applied=application.applied,
     )

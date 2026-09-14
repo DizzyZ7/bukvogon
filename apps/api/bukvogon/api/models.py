@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from bukvogon.domain.anti_cheat import VerificationStatus
 from bukvogon.domain.typing import TypingMode
@@ -37,8 +37,10 @@ class RankedResultPayload(BaseModel):
 
 
 class RankedRateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    race_id: str = Field(min_length=1)
     players: list[RankedPlayerPayload] = Field(min_length=2)
-    results: list[RankedResultPayload] = Field(min_length=2)
     k_factor: float = Field(default=32.0, gt=0)
 
 

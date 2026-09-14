@@ -29,6 +29,8 @@ Reasons:
 - no signing-key rotation or JWT claim-staleness problem is introduced in this MVP;
 - session inspection remains server-side and auditable.
 
+Default session lifetime is 30 days. Expiry is stored server-side and checked on every authenticated request.
+
 ## 4. Data model
 
 ### `users`
@@ -68,7 +70,7 @@ Only `pro_active` whose `valid_until` is either NULL or in the future may enter 
 
 ### `POST /v1/auth/guest`
 
-Creates a server-owned user, a default FREE entitlement row, and a new opaque session.
+Creates a server-owned user, a default FREE entitlement row, and a new opaque session with a 30-day expiry.
 
 Response:
 
@@ -87,9 +89,9 @@ The raw access token is never persisted.
 
 Requires `Authorization: Bearer <token>` and returns the authenticated user plus current server-owned entitlement.
 
-### Session revocation
+### `POST /v1/auth/logout`
 
-Repository support is required in this slice. A public logout endpoint may be added if it remains bounded during implementation; otherwise revocation is covered by repository/service tests and exposed in the next account-management slice.
+Requires the active Bearer session and revokes that exact session. The raw token is still never stored. Reusing the same token after logout returns HTTP 401.
 
 ## 6. FastAPI identity boundary
 
@@ -110,11 +112,16 @@ The client never supplies an entitlement status to a protected endpoint.
 
 ### Race creation
 
-`POST /v1/ranked/races` remains a server-side orchestration endpoint but its participant identity input must no longer be trusted as proof that the caller is any listed player.
+`POST /v1/ranked/races` requires an authenticated active-Pro caller.
 
-For the first production-safe slice, the caller must authenticate as active Pro. Participant lists can remain server-generated/test-oriented until matchmaking owns race assembly. The caller's authenticated identity must be present where the endpoint represents player participation.
+Until matchmaking owns race assembly, the endpoint may continue accepting `player_ids` as orchestration input, but they are not trusted identity assertions. Before creating an official Ranked race the server must verify:
+- the authenticated caller is included in `player_ids`;
+- every id resolves to an existing server user;
+- every listed user has a current active-Pro entitlement;
+- duplicates are rejected;
+- normal race-size bounds still apply.
 
-Long term, matchmaking will create Ranked races and users will not submit arbitrary Ranked participant lists.
+This prevents a client from constructing an official Ranked race with fake, unknown, FREE, GRACE, or EXPIRED participants. It does not yet implement invitation consent; matchmaking will replace client-authored participant lists later.
 
 ### Challenge issuance
 
@@ -207,6 +214,7 @@ The implementation must guarantee:
 - session comparison is performed by indexed hash lookup;
 - revoked and expired sessions fail closed;
 - entitlement is loaded server-side;
+- official Ranked participant ids resolve to real active-Pro users before race creation;
 - player identity is never accepted from client input on authenticated Ranked challenge/socket paths;
 - WebSocket tickets are one-time, short-lived, and binding-specific;
 - duplicate ticket consumption is rejected atomically;
@@ -219,6 +227,8 @@ The implementation must guarantee:
 - Missing/malformed Bearer token -> 401.
 - Unknown/revoked/expired session -> 401.
 - Valid session without current Pro -> 403.
+- Ranked race creation with unknown/non-Pro participants -> 422.
+- Authenticated caller omitted from its client-authored Ranked participant list -> 403.
 - Authenticated user not in Ranked race -> 403.
 - Missing/expired/consumed/mismatched WebSocket ticket -> close with policy violation code 1008 before joining the realtime hub.
 - Missing race -> 404 for HTTP challenge issuance; socket closes 1008.
@@ -232,7 +242,7 @@ Planned focused units:
 - `infrastructure/postgres_auth.py`: user/session/entitlement persistence.
 - `infrastructure/redis_ws_tickets.py`: one-time short-lived ticket store.
 - `services/auth.py`: session issuance and principal resolution.
-- `api/auth_routes.py`: guest session and `/auth/me`.
+- `api/auth_routes.py`: guest session, `/auth/me`, and logout.
 - reusable FastAPI auth/Pro dependencies.
 - existing `race_routes.py`: replace trusted Ranked player identity with authenticated principal and ticket consumption.
 - existing leaderboard repository projection: expose only through Pro-gated API.
@@ -245,15 +255,17 @@ Files may be split further if route or infrastructure modules grow beyond a clea
 Implementation proceeds RED -> GREEN in these slices:
 
 1. Session token hashing: raw token never persists.
-2. Guest issuance creates user + FREE entitlement + session.
+2. Guest issuance creates user + FREE entitlement + 30-day session.
 3. Principal resolution accepts active sessions and rejects unknown/revoked/expired sessions.
-4. Pro dependency allows only current `pro_active`.
-5. Ranked challenge derives user id from auth and cannot be spoofed with a path/body `player_id`.
-6. WebSocket ticket is bound, expires, and is consumable exactly once.
-7. Ranked socket uses ticket-owned user id and rejects replay/mismatch before hub join.
-8. Official leaderboard endpoint is 401/403 gated and returns server projection only.
-9. Existing exactly-once MMR and anti-cheat suites remain green.
-10. Full GitHub Actions backend, web build/tests, and operations/backup validation remain green.
+4. Logout revokes the exact session and replay returns 401.
+5. Pro dependency allows only current `pro_active`.
+6. Ranked creation rejects unknown/non-Pro participants and requires the caller in the race.
+7. Ranked challenge derives user id from auth and cannot be spoofed with a path/body `player_id`.
+8. WebSocket ticket is bound, expires, and is consumable exactly once.
+9. Ranked socket uses ticket-owned user id and rejects replay/mismatch before hub join.
+10. Official leaderboard endpoint is 401/403 gated and returns server projection only.
+11. Existing exactly-once MMR and anti-cheat suites remain green.
+12. Full GitHub Actions backend, web build/tests, and operations/backup validation remain green.
 
 ## 16. Migration and compatibility
 
@@ -266,9 +278,12 @@ Existing tests that directly inject repositories into `app.state` should continu
 ## 17. Acceptance criteria
 
 The slice is complete when:
-- a guest can obtain a server session;
+- a guest can obtain a server session with a 30-day expiry;
+- raw bearer credentials are not persisted;
+- logout/revocation invalidates the session immediately;
 - only the session token holder can act as that user on protected Ranked endpoints;
-- only active Pro can obtain Ranked access or official leaderboard data;
+- only active Pro can create/join official Ranked races or view official leaderboard data;
+- every official Ranked participant is a real active-Pro server user;
 - challenge and socket identity no longer come from client `player_id`;
 - the Ranked WebSocket bootstrap credential is short-lived and one-use;
 - official leaderboard/Top-1000 data is entirely server-derived;

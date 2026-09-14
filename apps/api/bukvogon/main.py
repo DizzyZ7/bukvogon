@@ -6,12 +6,15 @@ import os
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
+from bukvogon.api.auth import auth_router
 from bukvogon.api.race_routes import router as race_router
 from bukvogon.api.routes import router as v1_router
+from bukvogon.infrastructure.postgres_auth import PostgresAuthRepository
 from bukvogon.infrastructure.postgres_results import PostgresRaceResultRepository
 from bukvogon.infrastructure.redis_anti_cheat import RedisAntiCheatStore
 from bukvogon.infrastructure.redis_races import RedisRaceBroker, RedisRaceStore
 from bukvogon.services.anti_cheat import RankedAntiCheatService
+from bukvogon.services.auth import AuthService
 from bukvogon.services.races import RaceService
 from bukvogon.services.realtime import RaceRealtimeHub
 
@@ -32,6 +35,8 @@ async def lifespan(app: FastAPI):
         health_check_interval=30,
     )
     result_repository = PostgresRaceResultRepository(database_url)
+    auth_repository = PostgresAuthRepository(database_url)
+    auth_service = AuthService(auth_repository)
     race_store = RedisRaceStore(redis_client)
     race_broker = RedisRaceBroker(redis_client)
     race_hub = RaceRealtimeHub(race_broker)
@@ -47,6 +52,8 @@ async def lifespan(app: FastAPI):
 
     app.state.redis_client = redis_client
     app.state.race_results = result_repository
+    app.state.auth_repository = auth_repository
+    app.state.auth_service = auth_service
     app.state.race_service = race_service
     app.state.race_hub = race_hub
     app.state.anti_cheat_store = anti_cheat_store
@@ -56,6 +63,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         await race_hub.close()
+        await auth_repository.close()
         await result_repository.close()
         await redis_client.aclose()
 
@@ -69,4 +77,5 @@ def health() -> dict[str, str]:
 
 
 app.include_router(v1_router, prefix='/v1')
+app.include_router(auth_router, prefix='/v1')
 app.include_router(race_router, prefix='/v1')

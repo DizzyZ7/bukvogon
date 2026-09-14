@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feat/mvp-foundation
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend
+        run: python -m pip install -e '.[dev]'
+      - name: Run backend tests
+        run: python -m pytest
+
+  web:
+    name: Web tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install web dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run web tests
+        run: npm test
+      - name: Build web app
+        run: npm run build
+
+  operations:
+    name: Operations and backup validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate backup shell syntax
+        run: |
+          bash -n ops/backup/backup.sh
+          bash -n ops/backup/restore.sh
+      - name: Validate Docker Compose
+        run: docker compose config >/dev/null
+      - name: Build API container
+        run: docker build -t bukvogon-api:ci apps/api
+      - name: Build backup container
+        run: docker build -t bukvogon-backup:ci ops/backup
